@@ -41,40 +41,38 @@
 ## 项目结构
 
 ```
-├── app.py                 # 主程序（整合版）
+├── app.py                 # 主程序
 ├── config.py              # 配置管理
 ├── hybrid_retriever.py    # 混合检索模块
 ├── agent_tools.py         # Agent 工具定义
-├── 01_llm_basics.py       # 学习：LLM 基础
-├── 02_prompt_template.py  # 学习：Prompt 模板
-├── 03_text_splitting.py   # 学习：文本切分与向量化
-├── 04_rag_chain.py        # 学习：RAG 检索链
-├── 05_memory.py           # 学习：对话记忆
-├── 06_full_chatbot.py     # 学习：完整客服
-├── 07_web_ui.py           # 学习：Web 界面
-├── cheatsheet.md          # 速查表
 ├── knowledge/             # 知识库文档
 │   ├── product_faq.txt
 │   ├── return_policy.txt
 │   └── company_intro.txt
-├── requirements.txt       # 依赖列表
-└── .env                   # 环境变量（不提交）
+└── requirements.txt       # 依赖列表
 ```
 
 ## 快速开始
 
 ```bash
-# 1. 安装依赖
+# 1. 克隆项目
+git clone https://github.com/ZDtang22333/ai-customer-service.git
+cd ai-customer-service
+
+# 2. 安装依赖
 pip install -r requirements.txt
 
-# 2. 配置 API Key
-cp .env.example .env
-# 编辑 .env 填入你的 API Key
+# 3. 配置 API Key
+# 创建 .env 文件，填入以下内容：
+OPENAI_API_KEY=你的API密钥
+OPENAI_BASE_URL=https://token-plan-cn.xiaomimimo.com/v1
+CHAT_MODEL=mimo-v2.5-pro
+EMBEDDING_MODEL=BAAI/bge-small-zh-v1.5
 
-# 3. 构建向量数据库
-python 03_text_splitting.py
+# 4. 构建向量数据库
+python -c "from app import *"
 
-# 4. 启动 Web 界面
+# 5. 启动 Web 界面
 python app.py
 # 浏览器打开 http://127.0.0.1:7860
 ```
@@ -103,21 +101,6 @@ python app.py
 | BM25 关键词 | ~70% | 精确关键词匹配 |
 | 混合检索 | ~80% | 综合场景 |
 | 混合 + 重排序 | ~89% | 最佳效果 |
-
-## 学习路径
-
-```
-01_llm_basics.py      → LLM 调用基础
-02_prompt_template.py → Prompt 模板与 LCEL
-03_text_splitting.py  → 文本切分与向量化
-04_rag_chain.py       → RAG 检索链
-05_memory.py          → 对话记忆
-06_full_chatbot.py    → 完整客服
-07_web_ui.py          → Web 界面
-hybrid_retriever.py   → 混合检索
-agent_tools.py        → Agent 工具调用
-app.py                → 最终整合版
-```
 
 ## License
 
