@@ -19,12 +19,11 @@
 ### 对话管理
 - 多轮对话记忆
 - 意图识别与路由（知识问答 / 业务操作）
-- 流式输出
+- 流式输出（SSE）
 
 ### Web 界面
 - Gradio 聊天界面
-- 示例问题引导
-- 自动保存对话历史
+- FastAPI RESTful API + 流式接口
 
 ## 技术栈
 
@@ -36,12 +35,15 @@
 | 关键词检索 | BM25（jieba 分词） |
 | 重排序 | BAAI/bge-reranker-base |
 | Agent | LangChain create_agent |
-| Web | Gradio |
+| Web | Gradio / FastAPI |
 
 ## 项目结构
 
 ```
-├── app.py                 # 主程序
+├── app.py                 # Gradio 界面
+├── api.py                 # FastAPI 接口
+├── core.py                # 核心逻辑（Gradio 和 FastAPI 共用）
+├── session.py             # 多用户会话管理
 ├── config.py              # 配置管理
 ├── hybrid_retriever.py    # 混合检索模块
 ├── agent_tools.py         # Agent 工具定义
@@ -69,12 +71,93 @@ OPENAI_BASE_URL=https://token-plan-cn.xiaomimimo.com/v1
 CHAT_MODEL=mimo-v2.5-pro
 EMBEDDING_MODEL=BAAI/bge-small-zh-v1.5
 
-# 4. 构建向量数据库
-python -c "from app import *"
-
-# 5. 启动 Web 界面
+# 4. 启动 Gradio 界面
 python app.py
 # 浏览器打开 http://127.0.0.1:7860
+
+# 或者启动 FastAPI 接口
+python api.py
+# API 文档打开 http://127.0.0.1:8000/docs
+```
+
+## API 接口文档
+
+### 同步聊天
+
+```bash
+POST /chat
+
+请求：
+{
+    "user_id": "user_001",
+    "message": "笔记本电池能用多久？"
+}
+
+响应：
+{
+    "response": "根据产品信息，笔记本电池续航8-12小时...",
+    "intent": "rag"
+}
+```
+
+### 流式聊天（SSE）
+
+```bash
+POST /chat/stream
+
+请求：
+{
+    "user_id": "user_001",
+    "message": "笔记本电池能用多久？"
+}
+
+响应（Server-Sent Events）：
+data: {"token": "根"}
+data: {"token": "据"}
+data: {"token": "产品"}
+...
+data: {"done": true, "response": "根据产品信息...", "intent": "rag"}
+```
+
+### 获取对话历史
+
+```bash
+GET /history/{user_id}
+
+响应：
+{
+    "user_id": "user_001",
+    "message_count": 4,
+    "messages": [
+        {"role": "user", "content": "你好"},
+        {"role": "assistant", "content": "有什么可以帮您？"}
+    ]
+}
+```
+
+### 清空对话历史
+
+```bash
+DELETE /history/{user_id}
+
+响应：
+{
+    "status": "ok",
+    "message": "用户 user_001 的对话历史已清空"
+}
+```
+
+### 健康检查
+
+```bash
+GET /health
+
+响应：
+{
+    "status": "ok",
+    "service": "智能客服 API",
+    "online_users": 3
+}
 ```
 
 ## 核心流程

@@ -29,3 +29,7 @@ gradio>=6.0.0
 
 # Agent
 langgraph>=1.0.0
+
+# FastAPI
+fastapi>=0.115.0
+uvicorn>=0.30.0
