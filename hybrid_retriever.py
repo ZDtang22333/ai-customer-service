@@ -15,7 +15,7 @@ os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 from typing import List
 from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
-from langchain_community.vectorstores import    
+from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from rank_bm25 import BM25Okapi
 import jieba

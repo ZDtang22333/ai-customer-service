@@ -9,20 +9,25 @@ FastAPI 客服接口
 - GET  /history/{uid} 获取对话历史
 - DELETE /history/{uid} 清空对话历史
 - GET  /health        健康检查
+- GET  /stats         统计信息
 
 启动方式：python api.py
 API 文档：http://127.0.0.1:8000/docs
 """
 
 import json
-from fastapi import FastAPI
+import time
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from core import CustomerService
+from core import CustomerService, CustomerServiceError
 from session import SessionManager
 from config import validate_config
+from logger import get_logger
+
+logger = get_logger("api")
 
 
 # ============================================
@@ -31,8 +36,8 @@ from config import validate_config
 
 class ChatRequest(BaseModel):
     """聊天请求"""
-    user_id: str = "default"  # 用户ID，默认为 "default"
-    message: str               # 用户消息
+    user_id: str = "default"
+    message: str
 
     class Config:
         json_schema_extra = {
@@ -45,36 +50,47 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     """聊天响应"""
-    response: str   # 回复内容
-    intent: str     # 意图："agent" 或 "rag"
+    response: str
+    intent: str
+    elapsed: float  # 耗时（秒）
 
 
 # ============================================
 # 初始化
 # ============================================
 
-# 创建 FastAPI 应用
 app = FastAPI(
     title="智能客服 API",
     description="基于 LangChain + RAG + Agent 的智能电商客服系统",
     version="1.0.0",
 )
 
-# CORS 配置（允许前端跨域请求）
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 生产环境应该限制具体域名
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 初始化客服系统和会话管理器
-print("正在启动 FastAPI 服务...")
+logger.info("正在启动 FastAPI 服务...")
 validate_config()
-cs = CustomerService()
-session_manager = SessionManager(max_history=20)
-print("FastAPI 服务已就绪！")
+
+try:
+    cs = CustomerService()
+    session_manager = SessionManager(max_history=20)
+    logger.info("FastAPI 服务已就绪！")
+except CustomerServiceError as e:
+    logger.error(f"服务启动失败: {e}")
+    raise
+
+
+# ============================================
+# 请求计数（简单统计）
+# ============================================
+
+request_count = 0
+error_count = 0
 
 
 # ============================================
@@ -88,6 +104,21 @@ async def health_check():
         "status": "ok",
         "service": "智能客服 API",
         "online_users": len(session_manager.get_all_user_ids()),
+        "request_count": request_count,
+        "error_count": error_count,
+    }
+
+
+@app.get("/stats")
+async def get_stats():
+    """统计信息"""
+    return {
+        "total_requests": request_count,
+        "total_errors": error_count,
+        "error_rate": f"{error_count / max(request_count, 1) * 100:.1f}%",
+        "online_users": len(session_manager.get_all_user_ids()),
+        "users": session_manager.get_all_user_ids(),
+        "cache": cs.cache.stats,
     }
 
 
@@ -102,18 +133,34 @@ async def chat(request: ChatRequest):
     3. 保存对话记录
     4. 返回回复
     """
-    # 获取对话历史
-    history = session_manager.get_langchain_messages(request.user_id)
+    global request_count, error_count
+    request_count += 1
+    start_time = time.time()
 
-    # 调用客服核心
-    intent = cs.classify_intent(request.message)
-    response = cs.chat(request.message, history)
+    logger.info(f"[{request.user_id}] 收到消息: {request.message}")
 
-    # 保存对话记录
-    session_manager.add_message(request.user_id, "user", request.message)
-    session_manager.add_message(request.user_id, "assistant", response)
+    try:
+        # 获取对话历史
+        history = session_manager.get_langchain_messages(request.user_id)
 
-    return ChatResponse(response=response, intent=intent)
+        # 调用客服核心
+        intent = cs.classify_intent(request.message)
+        response = cs.chat(request.message, history)
+
+        # 保存对话记录
+        session_manager.add_message(request.user_id, "user", request.message)
+        session_manager.add_message(request.user_id, "assistant", response)
+
+        elapsed = time.time() - start_time
+        logger.info(f"[{request.user_id}] 回复完成: {elapsed:.2f}s, 意图={intent}")
+
+        return ChatResponse(response=response, intent=intent, elapsed=elapsed)
+
+    except Exception as e:
+        error_count += 1
+        elapsed = time.time() - start_time
+        logger.error(f"[{request.user_id}] 请求失败: {e} ({elapsed:.2f}s)", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"处理失败: {str(e)}")
 
 
 @app.post("/chat/stream")
@@ -127,42 +174,50 @@ async def chat_stream(request: ChatRequest):
     ...
     data: {"done": true, "response": "你好，有什么可以帮您？"}
     """
-    # 获取对话历史
-    history = session_manager.get_langchain_messages(request.user_id)
+    global request_count, error_count
+    request_count += 1
+    start_time = time.time()
 
-    # 意图判断
-    intent = cs.classify_intent(request.message)
+    logger.info(f"[{request.user_id}] 流式请求: {request.message}")
 
-    async def generate():
-        """生成 SSE 流"""
-        full_response = ""
+    try:
+        history = session_manager.get_langchain_messages(request.user_id)
+        intent = cs.classify_intent(request.message)
 
-        # 流式生成
-        for token in cs.chat_stream(request.message, history):
-            full_response += token
-            yield f"data: {json.dumps({'token': token}, ensure_ascii=False)}\n\n"
+        async def generate():
+            full_response = ""
 
-        # 保存对话记录
-        session_manager.add_message(request.user_id, "user", request.message)
-        session_manager.add_message(request.user_id, "assistant", full_response)
+            for token in cs.chat_stream(request.message, history):
+                full_response += token
+                yield f"data: {json.dumps({'token': token}, ensure_ascii=False)}\n\n"
 
-        # 结束标记
-        yield f"data: {json.dumps({'done': True, 'response': full_response, 'intent': intent}, ensure_ascii=False)}\n\n"
+            # 保存对话记录
+            session_manager.add_message(request.user_id, "user", request.message)
+            session_manager.add_message(request.user_id, "assistant", full_response)
 
-    return StreamingResponse(
-        generate(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-        },
-    )
+            elapsed = time.time() - start_time
+            logger.info(f"[{request.user_id}] 流式完成: {elapsed:.2f}s")
+
+            yield f"data: {json.dumps({'done': True, 'response': full_response, 'intent': intent, 'elapsed': elapsed}, ensure_ascii=False)}\n\n"
+
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+        )
+
+    except Exception as e:
+        error_count += 1
+        elapsed = time.time() - start_time
+        logger.error(f"[{request.user_id}] 流式失败: {e} ({elapsed:.2f}s)", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"处理失败: {str(e)}")
 
 
 @app.get("/history/{user_id}")
 async def get_history(user_id: str):
     """获取用户的对话历史"""
     history = session_manager.get_history(user_id)
+    logger.debug(f"[{user_id}] 获取历史: {len(history)} 条")
     return {
         "user_id": user_id,
         "message_count": len(history),
@@ -174,19 +229,16 @@ async def get_history(user_id: str):
 async def clear_history(user_id: str):
     """清空用户的对话历史"""
     session_manager.clear(user_id)
-    return {
-        "status": "ok",
-        "message": f"用户 {user_id} 的对话历史已清空",
-    }
+    logger.info(f"[{user_id}] 历史已清空")
+    return {"status": "ok", "message": f"用户 {user_id} 的对话历史已清空"}
 
 
-@app.get("/users")
-async def get_users():
-    """获取所有在线用户"""
-    return {
-        "users": session_manager.get_all_user_ids(),
-        "count": len(session_manager.get_all_user_ids()),
-    }
+@app.delete("/cache")
+async def clear_cache():
+    """清空缓存"""
+    cs.cache.clear()
+    logger.info("缓存已清空")
+    return {"status": "ok", "message": "缓存已清空"}
 
 
 # ============================================
@@ -195,4 +247,5 @@ async def get_users():
 
 if __name__ == "__main__":
     import uvicorn
+    logger.info("启动 uvicorn 服务器...")
     uvicorn.run(app, host="0.0.0.0", port=8000)
