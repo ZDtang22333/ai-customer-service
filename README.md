@@ -8,6 +8,7 @@
 - 支持 txt 文档自动加载、切分、向量化
 - 混合检索：BM25 关键词搜索 + 语义搜索
 - 重排序：CrossEncoder 精排，提升准确率
+- 知识库覆盖：产品参数、退货政策、促销活动、配送政策、常见问题
 
 ### 业务处理（Agent）
 - 订单查询：输入订单号查询状态
@@ -20,6 +21,8 @@
 - 多轮对话记忆
 - 意图识别与路由（知识问答 / 业务操作）
 - 流式输出（SSE）
+- 响应缓存（相同问题秒回）
+- 日志系统（控制台 + 文件记录）
 
 ### Web 界面
 - Gradio 聊天界面
@@ -49,8 +52,12 @@
 ├── agent_tools.py         # Agent 工具定义
 ├── knowledge/             # 知识库文档
 │   ├── product_faq.txt
+│   ├── product_specs.txt
 │   ├── return_policy.txt
-│   └── company_intro.txt
+│   ├── promotions.txt
+│   ├── shipping_policy.txt
+│   ├── company_intro.txt
+│   └── faq.txt
 └── requirements.txt       # 依赖列表
 ```
 

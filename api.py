@@ -15,6 +15,9 @@ FastAPI 客服接口
 API 文档：http://127.0.0.1:8000/docs
 """
 
+import os
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+
 import json
 import time
 from fastapi import FastAPI, HTTPException

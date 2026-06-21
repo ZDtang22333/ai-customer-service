@@ -7,6 +7,9 @@ Gradio 界面
 然后浏览器打开 http://127.0.0.1:7860
 """
 
+import os
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+
 import gradio as gr
 from core import CustomerService
 from session import SessionManager

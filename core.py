@@ -12,7 +12,7 @@
 """
 
 import os
-os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
+os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")  # 确保在最前面
 
 import time
 from typing import List, Generator
