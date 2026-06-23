@@ -8,7 +8,15 @@
 - 支持 txt 文档自动加载、切分、向量化
 - 混合检索：BM25 关键词搜索 + 语义搜索
 - 重排序：CrossEncoder 精排，提升准确率
+- 父子块检索：小块精确匹配，大块返回上下文
+- 阈值截断：过滤低相关文档，避免污染 LLM 输入
 - 知识库覆盖：产品参数、退货政策、促销活动、配送政策、常见问题
+
+### 质量评估（RAGAS）
+- Faithfulness：回答是否忠于检索到的文档
+- Answer Relevance：回答是否和问题相关
+- Context Precision：检索到的文档是否相关
+- Context Recall：是否检索到了所有相关文档
 
 ### 业务处理（Agent）
 - 订单查询：输入订单号查询状态
@@ -48,8 +56,12 @@
 ├── core.py                # 核心逻辑（Gradio 和 FastAPI 共用）
 ├── session.py             # 多用户会话管理
 ├── config.py              # 配置管理
-├── hybrid_retriever.py    # 混合检索模块
+├── hybrid_retriever.py    # 检索模块（BM25+语义+重排序+父子块+阈值截断）
 ├── agent_tools.py         # Agent 工具定义
+├── evaluate.py            # RAGAS 评估脚本
+├── test_dataset.json      # 评估测试数据集
+├── cache.py               # 缓存机制
+├── logger.py              # 日志系统
 ├── knowledge/             # 知识库文档
 │   ├── product_faq.txt
 │   ├── product_specs.txt
@@ -191,6 +203,20 @@ GET /health
 | BM25 关键词 | ~70% | 精确关键词匹配 |
 | 混合检索 | ~80% | 综合场景 |
 | 混合 + 重排序 | ~89% | 最佳效果 |
+| + 父子块检索 | ~92% | 需要完整上下文 |
+| + 阈值截断 | ~95% | 过滤不相关文档 |
+
+## RAGAS 评估
+
+```bash
+python evaluate.py
+```
+
+评估指标：
+- **Faithfulness** (目标 > 0.85)：回答是否忠于文档
+- **Answer Relevance** (目标 > 0.80)：回答是否和问题相关
+- **Context Precision** (目标 > 0.80)：检索到的文档是否相关
+- **Context Recall** (目标 > 0.85)：是否检索到了所有相关文档
 
 ## License
 

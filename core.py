@@ -28,10 +28,10 @@ from langchain.agents import create_agent
 from config import (
     OPENAI_API_KEY, OPENAI_BASE_URL, CHAT_MODEL,
     EMBEDDING_MODEL,
-    CHROMA_PERSIST_DIR, CHROMA_COLLECTION, RETRIEVAL_K,
+    CHROMA_PERSIST_DIR, CHROMA_COLLECTION,
 )
 from agent_tools import TOOLS
-from hybrid_retriever import HybridRetriever, RerankRetriever
+from hybrid_retriever import build_retriever
 from logger import get_logger
 from cache import ResponseCache
 
@@ -101,21 +101,12 @@ class CustomerService:
 
             # 4. 混合检索
             logger.info("[4/5] 构建混合检索...")
-            from langchain_community.document_loaders import DirectoryLoader, TextLoader
-            from langchain_text_splitters import RecursiveCharacterTextSplitter
-
-            loader = DirectoryLoader(
-                "knowledge", glob="**/*.txt",
-                loader_cls=TextLoader,
-                loader_kwargs={"encoding": "utf-8"},
+            self.retriever, self.embeddings = build_retriever(
+                use_rerank=True,
+                use_parent_child=False,  # 可改为 True 启用父子块
+                use_threshold=True,      # 启用阈值截断
+                threshold=0.3,
             )
-            documents = loader.load()
-            splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-            chunks = splitter.split_documents(documents)
-            logger.info(f"  文档切分完成: {len(documents)} 个文档 → {len(chunks)} 个文本块")
-
-            hybrid = HybridRetriever(self.vectorstore, chunks, k=RETRIEVAL_K)
-            self.retriever = RerankRetriever(hybrid, k=RETRIEVAL_K)
             logger.info("  混合检索构建完成")
 
             # 5. Agent

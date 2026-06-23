@@ -1,0 +1,52 @@
+[
+  {
+    "question": "笔记本电池能用多久？",
+    "ground_truth": "办公本一般8-12小时，游戏本一般4-6小时",
+    "context_keyword": "电池"
+  },
+  {
+    "question": "退货要几天？",
+    "ground_truth": "自签收之日起7天内可无理由退货",
+    "context_keyword": "退货"
+  },
+  {
+    "question": "退款多久到账？",
+    "ground_truth": "支付宝/微信1-3个工作日，银行卡3-7个工作日，信用卡7-15个工作日",
+    "context_keyword": "退款"
+  },
+  {
+    "question": "耳机降噪效果怎么样？",
+    "ground_truth": "主动降噪可降低约35dB环境噪音，支持通透模式",
+    "context_keyword": "降噪"
+  },
+  {
+    "question": "你们发什么快递？",
+    "ground_truth": "顺丰/京东物流/中通，2-5个工作日",
+    "context_keyword": "快递"
+  },
+  {
+    "question": "订单满多少包邮？",
+    "ground_truth": "订单满99元包邮",
+    "context_keyword": "包邮"
+  },
+  {
+    "question": "会员有什么权益？",
+    "ground_truth": "金牌会员95折、优先客服、生日礼包。钻石会员9折、专属客服、免费贴膜",
+    "context_keyword": "会员"
+  },
+  {
+    "question": "手机支持快充吗？",
+    "ground_truth": "标准版33W快充，Pro版67W快充，Ultra版120W快充",
+    "context_keyword": "快充"
+  },
+  {
+    "question": "保修期内维修要钱吗？",
+    "ground_truth": "非人为损坏的故障，保修期内免费维修",
+    "context_keyword": "保修"
+  },
+  {
+    "question": "现在有什么优惠活动？",
+    "ground_truth": "618年中大促，全场满3000减300，笔记本直降500元",
+    "context_keyword": "活动"
+  }
+]
